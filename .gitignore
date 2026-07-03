@@ -11,3 +11,6 @@ wheels/
 
 # sandbox notebook
 notebooks/sandbox.ipynb
+
+# submit
+submit.csv
