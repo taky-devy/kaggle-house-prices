@@ -34,7 +34,7 @@ def _building_age_at_sale(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = 'BuildingAgeAtSale'
     return df.with_columns(
         (pl.col('YrSold') - pl.max_horizontal('YearBuilt', 'YearRemodAdd'))
-        .clip(lower_bound=0)
+        .clip(lower_bound=0) # 売却年の方が先で -1 (log化で-inf) になるサンプルがあるのでclipする
         .alias(new_feat_name)
     )
 
