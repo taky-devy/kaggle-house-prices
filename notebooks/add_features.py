@@ -19,7 +19,7 @@ def _bath_score(df:pl.DataFrame)->pl.DataFrame:
 
 def _total_flr_sf(df:pl.DataFrame)->pl.DataFrame:
     new_feat_name = 'TotalFlrSF'
-    cols = ['1stFlrSF', '2ndFlrSF', 'TotalBsmtSF']
+    cols = ['GrLivArea', 'TotalBsmtSF']
     return df.with_columns(pl.sum_horizontal(cols).alias(new_feat_name))
 
 def _is_overall_ge9(df: pl.DataFrame) -> pl.DataFrame:
@@ -39,10 +39,10 @@ def _building_age_at_sale(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 def _bsmt_above_ratio(df: pl.DataFrame) -> pl.DataFrame:
-    # TotalBsmtSF / (1stFlrSF + 2ndFlrSF)
+    # TotalBsmtSF / GrLivArea
     new_feat_name = 'BsmtAboveRatio'
     return df.with_columns(
-        (pl.col('TotalBsmtSF') / (pl.col('1stFlrSF') + pl.col('2ndFlrSF')))
+        (pl.col('TotalBsmtSF') / (pl.col('GrLivArea')))
         .alias(new_feat_name)
     )
 
@@ -53,6 +53,29 @@ def _liv_lot_ratio(df: pl.DataFrame) -> pl.DataFrame:
         (pl.col('GrLivArea') / pl.col('LotArea')).alias(new_feat_name)
     )
 
+def _sold_may2july(df: pl.DataFrame) -> pl.DataFrame:
+    # MoSold列が = 5,6,7 なら1, それ以外 0
+    new_feat_name = 'SoldMay2July'
+    return df.with_columns(
+        pl.col('MoSold').is_in([5, 6, 7]).cast(pl.Int8).alias(new_feat_name)
+    )
+
+def _sold_after_rehman(df: pl.DataFrame) -> pl.DataFrame:
+    # リーマンショック以降に売れたか
+    # 2008年10月を閾値とする。(当該日は9/15だが売却日のデータがないため)
+    new_feat_name = 'SoldAfterRehman'
+    return df.with_columns(
+        ((pl.col('YrSold') > 2008) |
+        ((pl.col('YrSold') == 2008) & (pl.col('MoSold') >= 10)))
+        .cast(pl.Int8).alias(new_feat_name)
+    )
+
+# def _hoge(df: pl.DataFrame) -> pl.DataFrame:
+#     # description
+#     new_feat_name = 'hoge'
+#     return df.with_columns(
+#     )
+
 def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
     functions = [
         _over_all_score,
@@ -62,6 +85,8 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _building_age_at_sale,
         _bsmt_above_ratio,
         _liv_lot_ratio,
+        _sold_may2july,
+        _sold_after_rehman,
     ]
     
     for f in functions:
