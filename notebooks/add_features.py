@@ -91,10 +91,10 @@ def _sold_after_rehman(df: pl.DataFrame) -> pl.DataFrame:
 def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
     functions = [
         _over_all_score,
-        _bath_score,  # test にのみ欠損があってエラー。一時的にアウト
+        _bath_score,
         _total_flr_sf,
         _is_overall_ge9,
-        # _building_age_at_sale,
+        _building_age_at_sale,
         _bsmt_above_ratio,
         _liv_lot_ratio,
         _sold_may2june,
