@@ -63,7 +63,7 @@ def _liv_lot_ratio(df: pl.DataFrame) -> pl.DataFrame:
 
 def _sold_may2june(df: pl.DataFrame) -> pl.DataFrame:
     # MoSold列が = 5,6 なら1, それ以外 0
-    new_feat_name = 'SoldMay2July'
+    new_feat_name = 'SoldMay2June'
     return df.with_columns(
         pl.col('MoSold').fill_null(0).is_in([5, 6]).cast(pl.Int8).alias(new_feat_name)
     )
