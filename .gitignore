@@ -15,3 +15,6 @@ notebooks/explore.ipynb
 
 # submit
 submit.csv
+
+# pdf
+Top_25_feats_ridge_coef.pdf
