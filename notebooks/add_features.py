@@ -82,6 +82,25 @@ def _sold_after_rehman(df: pl.DataFrame) -> pl.DataFrame:
         .cast(pl.Int8).alias(new_feat_name)
     )
 
+def _are_per_rooms(df: pl.DataFrame) -> pl.DataFrame:
+    # GrLivArea / TotRmsAbvGrd
+    new_feat_name = 'AreaPerRooms'
+    return df.with_columns(
+        (pl.col('GrLivArea').fill_null(0) / pl.col('TotRmsAbvGrd').fill_null(0))
+        .fill_nan(0)
+        .replace([np.inf, -np.inf], 0)
+        .alias(new_feat_name)
+    )
+
+def _has_garege(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'HasGarage'
+    return df.with_columns(
+        pl.when(pl.col('GarageQual') == 'NA')
+        .then(0)
+        .otherwise(1)
+        .alias(new_feat_name)
+    )
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     # description
 #     new_feat_name = 'hoge'
@@ -99,6 +118,8 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _liv_lot_ratio,
         _sold_may2june,
         _sold_after_rehman,
+        _are_per_rooms,
+        _has_garege
     ]
     
     for f in functions:
