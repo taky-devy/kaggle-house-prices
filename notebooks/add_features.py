@@ -101,6 +101,14 @@ def _has_garege(df: pl.DataFrame) -> pl.DataFrame:
         .alias(new_feat_name)
     )
 
+def _target_exterior1_2(df: pl.DataFrame) -> pl.DataFrame:
+    # description
+    new_feat_name = 'TargetExterior1_2'
+    return df.with_columns(
+        (pl.col('Exterior1st') + '_' + pl.col('Exterior2nd'))
+        .alias(new_feat_name)
+    )
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     # description
 #     new_feat_name = 'hoge'
@@ -119,7 +127,8 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _sold_may2june,
         _sold_after_rehman,
         _are_per_rooms,
-        _has_garege
+        _has_garege,
+        _target_exterior1_2
     ]
     
     for f in functions:
