@@ -30,14 +30,21 @@ def _is_overall_ge9(df: pl.DataFrame) -> pl.DataFrame:
         (pl.col('OverallQual').fill_null(0) >= 9).cast(pl.Int8).alias(new_feat_name)
     )
 
-def _building_age_at_sale(df: pl.DataFrame) -> pl.DataFrame:
-    # YrSold - Max(YearBuilt, YearRemodAdd)  ※ データ不備による負値を0にクリップ
-    new_feat_name = 'BuildingAgeAtSale'
+def _remod_age(df: pl.DataFrame) -> pl.DataFrame:
+    # YrSold - YearRemodAdd
+    new_feat_name = 'RemodAge'
     return df.with_columns(
-        (pl.col('YrSold').fill_null(0) - pl.max_horizontal(
-            pl.col('YearBuilt').fill_null(0), pl.col('YearRemodAdd').fill_null(0)
-        ))
-        .clip(lower_bound=0) # 売却年の方が先で -1 (log化で-inf) になるサンプルがあるのでclipする
+        (pl.col('YrSold').fill_null(strategy='mean') - pl.col('YearRemodAdd').fill_null(strategy='mean'))
+        .clip(lower_bound=0)
+        .alias(new_feat_name)
+    )
+
+def _building_age(df: pl.DataFrame) -> pl.DataFrame:
+    # YrSold - YearBuilt
+    new_feat_name = 'BuildingAge'
+    return df.with_columns(
+        (pl.col('YrSold').fill_null(strategy='mean') - pl.col('YearBuilt').fill_null(strategy='mean'))
+        .clip(lower_bound=0)
         .alias(new_feat_name)
     )
 
@@ -114,6 +121,12 @@ def _livarea_x_qual(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(
         (pl.col('OverallQual') * pl.col('GrLivArea')).alias(new_feat_name)
     )
+    
+def _garage_car_ratio(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'GarageCarRatio'
+    return df.with_columns(
+        (pl.col('GarageArea') / pl.col('GarageCars')).alias(new_feat_name)
+    )
 
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     # description
@@ -127,7 +140,8 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _bath_score,
         _total_flr_sf,
         _is_overall_ge9,
-        _building_age_at_sale,
+        _remod_age,
+        _building_age,
         _bsmt_above_ratio,
         _liv_lot_ratio,
         _sold_may2june,
@@ -135,7 +149,8 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _are_per_rooms,
         _has_garege,
         _target_exterior1_2,
-        _livarea_x_qual
+        _livarea_x_qual,
+        _garage_car_ratio
     ]
     
     for f in functions:
