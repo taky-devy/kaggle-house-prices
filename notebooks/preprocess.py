@@ -122,6 +122,7 @@ log_standardized = [
     "BsmtAboveRatio",
     "LivLotRatio",
     "LivArea_x_Qual",
+    "FireplaceScore",
 ]
 
 standardized = [

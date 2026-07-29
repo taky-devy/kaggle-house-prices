@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import polars as pl
 from polars import selectors as cs
@@ -128,6 +129,22 @@ def _garage_car_ratio(df: pl.DataFrame) -> pl.DataFrame:
         (pl.col('GarageArea') / pl.col('GarageCars')).alias(new_feat_name)
     )
 
+def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'FireplaceScore'
+    return df.with_columns((
+        pl.col('Fireplaces').fill_null(0).sqrt() * \
+        pl.when(pl.col('FireplaceQu') == 'NA')
+        .then(0)
+        .when(pl.col('FireplaceQu') == 'TA')
+        .then(1)
+        .when(pl.col('FireplaceQu') == 'Gd')
+        .then(2)
+        .when(pl.col('FireplaceQu') == 'Gd')
+        .then(3)
+        .pow(2)
+        ).alias(new_feat_name)
+    )
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     # description
 #     new_feat_name = 'hoge'
@@ -150,7 +167,8 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _has_garege,
         _target_exterior1_2,
         _livarea_x_qual,
-        _garage_car_ratio
+        _garage_car_ratio,
+        _fireplace_score
     ]
     
     for f in functions:
