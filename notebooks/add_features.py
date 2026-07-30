@@ -145,9 +145,50 @@ def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
         ).alias(new_feat_name)
     )
 
+def _total_outdoor_sf(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'TotalOutdoorSF'
+    return df.with_columns(
+        (
+            pl.col('WoodDeckSF') \
+            + pl.col('OpenPorchSF') \
+            + pl.col('EnclosedPorch') \
+            + pl.col('3SsnPorch') \
+            + pl.col('ScreenPorch')
+        ).alias(new_feat_name)
+    )
+
+def _bsmt_fn_ratio(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'BsmtFnRatio'
+    return df.with_columns(
+        (
+            pl.when(pl.col('BsmtQual') == 'NA')
+            .then(0)
+            .otherwise(pl.lit(1) - (pl.col('BsmtUnfSF')/pl.col('TotalBsmtSF')))
+        ).alias(new_feat_name)
+    )
+
+def _is_remodeled(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'IsRemodeled'
+    return df.with_columns(
+        (
+            pl.when(pl.col('YearRemodAdd') > pl.col('YearBuilt'))
+            .then(1)
+            .otherwise(0)
+        ).alias(new_feat_name)
+    )
+
+def _luxury_count(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'LuxuryCount'
+    return df.with_columns(
+        (
+            pl.when(pl.col('PoolArea')>0).then(1) \
+            + pl.when(pl.col('FireplaceQu').is_in(['Gd','Ex'])).then(1) + \
+            + pl.when(pl.col('MiscFeature')=='TenC').then(1)
+        ).alias(new_feat_name)
+    )
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
-#     # description
-#     new_feat_name = 'hoge'
+#     new_feat_name = ''
 #     return df.with_columns(
 #     )
 
@@ -168,7 +209,11 @@ def add_modified_features(df:pl.DataFrame)->pl.DataFrame:
         _target_exterior1_2,
         _livarea_x_qual,
         _garage_car_ratio,
-        _fireplace_score
+        _fireplace_score,
+        _total_outdoor_sf,
+        _bsmt_fn_ratio,
+        _is_remodeled,
+        _luxury_count
     ]
     
     for f in functions:

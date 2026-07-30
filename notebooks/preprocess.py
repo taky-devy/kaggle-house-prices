@@ -145,6 +145,10 @@ standardized = [
     "GarageCarRatio",
     "RemodAge",
     "BuildingAge",
+    "TotalOutdoorSF",
+    "BsmtFnRatio",
+    "IsRemodeled",
+    "LuxuryCount",
 ]
 
 
