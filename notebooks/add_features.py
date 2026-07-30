@@ -139,7 +139,7 @@ def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
         .then(1)
         .when(pl.col('FireplaceQu') == 'Gd')
         .then(2)
-        .when(pl.col('FireplaceQu') == 'Gd')
+        .when(pl.col('FireplaceQu') == 'Ex')
         .then(3)
         .pow(2)
         ).alias(new_feat_name)
