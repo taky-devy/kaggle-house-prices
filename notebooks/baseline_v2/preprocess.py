@@ -1,18 +1,28 @@
+"""
+# description
+    前処理のパイプラインを生成する
+
+# やること
+    - 列 × 前処理系 のマッピング
+    - 木モデル用のColumnTransformerの生成
+    - 回帰モデル用のColumnTransformerの生成
+    - TargetTransformerの生成
+# やらないこと(理由)
+    - impute (ipynb側に委ねるため)
+"""
+
 import numpy as np
 from category_encoders import CountEncoder, TargetEncoder
 from sklearn.compose import ColumnTransformer
-from sklearn.impute import MissingIndicator, SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import (
-    Binarizer,
     FunctionTransformer,
     OneHotEncoder,
     OrdinalEncoder,
     StandardScaler,
 )
 
-
-map_label = {
+map_encode = {
     "Condition1": {
         "Artery": -1,
         "Feedr": -1,
@@ -52,27 +62,12 @@ eq_values_label = {
     "GarageType": ["Attchd", "BuiltIn"],
 }
 
-is_na_label = [
-    "Alley",
-    "PoolQC",
-    "Fence",
-    "MiscFeature",
-]
 
-is_zero_label = [
-    "LowQualFinSF",
-    "PoolArea",
-    "BsmtHalfBath",
-    "ScreenPorch",
-    "3SsnPorch",
-    "MiscVal",
-]
-
-ordinal_encoded_data_error = {
-    "KitchenQual": ["Po", "Fa", "TA", "Gd", "Ex"],
-    "Functional": ["Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"],
-    "ExterQual": ["Po", "Fa", "TA", "Gd", "Ex"],
-    "ExterCond": ["Po", "Fa", "TA", "Gd", "Ex"],
+ordinal_encoded = {
+    "KitchenQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "Functional": ["None", "Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"],
+    "ExterQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "ExterCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
 }
 
 ordinal_encoded_no_feature = {
@@ -152,22 +147,6 @@ standardized = [
 ]
 
 
-def get_feature_config():
-    return {
-        "map_label": map_label,
-        "eq_values_label": eq_values_label,
-        "is_na_label": is_na_label,
-        "is_zero_label": is_zero_label,
-        "ordinal_encoded_data_error": ordinal_encoded_data_error,
-        "ordinal_encoded_no_feature": ordinal_encoded_no_feature,
-        "one_hot_encoded": one_hot_encoded,
-        "target_encoded": target_encoded,
-        "count_encoded": count_encoded,
-        "log_standardized": log_standardized,
-        "standardized": standardized,
-    }
-
-
 def build_target_transformer():
     return Pipeline(
         [
@@ -204,7 +183,12 @@ def build_preprocessor():
         [
             (
                 "ordinal",
-                OrdinalEncoder(categories=[sorted(mapping, key=mapping.get) for mapping in map_label.values()]),
+                OrdinalEncoder(
+                    categories=[
+                        sorted(mapping, key=mapping.get)
+                        for mapping in map_encode.values()
+                    ]
+                ),
             ),
             ("scale", StandardScaler()),
         ]
@@ -230,57 +214,21 @@ def build_preprocessor():
         ]
     )
 
-    is_na_label_pipeline = Pipeline(
-        [
-            ("indicator", MissingIndicator(features="all", missing_values=None)),
-            ("scale", StandardScaler()),
-        ]
-    )
-
-    is_zero_label_pipeline = Pipeline(
-        [
-            ("impute", SimpleImputer(strategy="constant", fill_value=0)),
-            ("binarize", Binarizer(threshold=0)),
-            ("scale", StandardScaler()),
-        ]
-    )
-
-    ordinal_data_error_sign = np.array([-1 if col == "Functional" else 1 for col in ordinal_encoded_data_error])
-
-    ordinal_encoded_data_error_pipeline = Pipeline(
-        [
-            ("impute", SimpleImputer(strategy="most_frequent", missing_values=None)),
-            ("ordinal", OrdinalEncoder(categories=list(ordinal_encoded_data_error.values()))),
-            (
-                "sign",
-                FunctionTransformer(
-                    lambda X: np.asarray(X) * ordinal_data_error_sign,
-                    feature_names_out="one-to-one",
-                ),
-            ),
-        ]
-    )
-
-    ordinal_encoded_no_feature_pipeline = Pipeline(
+    ordinal_encoded_pipeline = Pipeline(
         [
             (
-                "impute",
-                SimpleImputer(strategy="constant", fill_value="Missing", missing_values=None),
-            ),
-            ("ordinal", OrdinalEncoder(categories=list(ordinal_encoded_no_feature.values()))),
+                "ordinal",
+                OrdinalEncoder(categories=list(ordinal_encoded_no_feature.values())),
+            )
         ]
     )
 
     one_hot_encoded_pipeline = Pipeline(
-        [
-            ("impute", SimpleImputer(strategy="most_frequent", missing_values=None)),
-            ("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=0.01)),
-        ]
+        [("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=0.01))]
     )
 
     target_encoded_pipeline = Pipeline(
         [
-            ("impute", SimpleImputer(strategy="most_frequent", missing_values=None)),
             ("target", TargetEncoder()),
             ("scale", StandardScaler()),
         ]
@@ -288,33 +236,31 @@ def build_preprocessor():
 
     count_encoded_pipeline = Pipeline(
         [
-            ("impute", SimpleImputer(strategy="most_frequent", missing_values=None)),
             ("count", CountEncoder()),
         ]
     )
 
     log_standardized_pipeline = Pipeline(
         [
-            ("impute", SimpleImputer(strategy="median")),
             ("log_standard", log_standardize),
         ]
     )
 
     standardized_pipeline = Pipeline(
         [
-            ("impute", SimpleImputer(strategy="median")),
             ("scale", StandardScaler()),
         ]
     )
 
-    return ColumnTransformer(
+    ct_for_reg = ColumnTransformer(
         [
-            ("map_label", map_label_pipeline, list(map_label.keys())),
+            ("map_label", map_label_pipeline, list(map_encode.keys())),
             ("eq_val_label", eq_values_label_pipeline, list(eq_values_label.keys())),
-            ("is_na_label", is_na_label_pipeline, is_na_label),
-            ("is_zero_label", is_zero_label_pipeline, is_zero_label),
-            ("ordinal_encoded_data_error", ordinal_encoded_data_error_pipeline, list(ordinal_encoded_data_error)),
-            ("ordinal_encoded_no_feature", ordinal_encoded_no_feature_pipeline, list(ordinal_encoded_no_feature)),
+            (
+                "ordinal_encoded",
+                ordinal_encoded_pipeline,
+                list(ordinal_encoded),
+            ),
             ("one_hot_encoded", one_hot_encoded_pipeline, one_hot_encoded),
             ("target_encoded", target_encoded_pipeline, target_encoded),
             ("count_encoded", count_encoded_pipeline, count_encoded),
@@ -323,3 +269,20 @@ def build_preprocessor():
         ],
         remainder="drop",
     )
+
+    ct_for_tree = ColumnTransformer(
+        [
+            ("map_label", map_label_pipeline, list(map_encode.keys())),
+            ("eq_val_label", eq_values_label_pipeline, list(eq_values_label.keys())),
+            (
+                "ordinal_encoded",
+                ordinal_encoded_pipeline,
+                list(ordinal_encoded),
+            ),
+            ("target_encoded", target_encoded_pipeline, target_encoded),
+            ("count_encoded", count_encoded_pipeline, count_encoded),
+        ],
+        remainder="drop",
+    )
+
+    return [ct_for_tree, ct_for_reg]
