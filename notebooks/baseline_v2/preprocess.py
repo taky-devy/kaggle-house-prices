@@ -12,7 +12,7 @@
 """
 
 import numpy as np
-from category_encoders import CountEncoder, TargetEncoder
+from category_encoders import TargetEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import (
@@ -22,7 +22,7 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 
-map_encode = {
+map_encoded = {
     "Condition1": {
         "Artery": -1,
         "Feedr": -1,
@@ -47,7 +47,7 @@ map_encode = {
     },
 }
 
-eq_values_label = {
+eq_values_labeled = {
     "Street": ["Pave"],
     "CentralAir": ["Y"],
     "Heating": ["GasA"],
@@ -65,19 +65,26 @@ eq_values_label = {
 
 ordinal_encoded = {
     "KitchenQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
-    "Functional": ["None", "Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"],
+    "Functional": [
+        "None",
+        "Sal",
+        "Sev",
+        "Maj2",
+        "Maj1",
+        "Mod",
+        "Min2",
+        "Min1",
+        "Typ",
+    ],
     "ExterQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "ExterCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
-}
-
-ordinal_encoded_no_feature = {
-    "FireplaceQu": ["Missing", "Po", "Fa", "TA", "Gd", "Ex"],
-    "GarageQual": ["Missing", "Po", "Fa", "TA", "Gd", "Ex"],
-    "GarageCond": ["Missing", "Po", "Fa", "TA", "Gd", "Ex"],
+    "FireplaceQu": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "GarageQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "GarageCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "LotShape": ["Reg", "IR1", "IR2", "IR3"],
-    "BsmtCond": ["Missing", "Po", "Fa", "TA", "Gd", "Ex"],
-    "BsmtQual": ["Missing", "Po", "Fa", "TA", "Gd", "Ex"],
-    "BsmtExposure": ["Missing", "No", "Mn", "Av", "Gd"],
+    "BsmtCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "BsmtQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "BsmtExposure": ["None", "No", "Mn", "Av", "Gd"],
 }
 
 one_hot_encoded = [
@@ -186,7 +193,7 @@ def build_preprocessor():
                 OrdinalEncoder(
                     categories=[
                         sorted(mapping, key=mapping.get)
-                        for mapping in map_encode.values()
+                        for mapping in map_encoded.values()
                     ]
                 ),
             ),
@@ -194,7 +201,7 @@ def build_preprocessor():
         ]
     )
 
-    def _eq_values_transform(X, mapping=eq_values_label):
+    def _eq_values_transform(X, mapping=eq_values_labeled):
         X = np.asarray(X)
         out = np.empty(X.shape, dtype=int)
         for i, values in enumerate(mapping.values()):
@@ -206,47 +213,40 @@ def build_preprocessor():
             (
                 "eq",
                 FunctionTransformer(
-                    _eq_values_transform,
-                    feature_names_out="one-to-one",
+                    _eq_values_transform, feature_names_out="one-to-one"
                 ),
             ),
             ("scale", StandardScaler()),
         ]
     )
 
-    ordinal_encoded_pipeline = Pipeline(
+    ordinal_encode_pipeline = Pipeline(
         [
             (
                 "ordinal",
-                OrdinalEncoder(categories=list(ordinal_encoded_no_feature.values())),
+                OrdinalEncoder(categories=list(ordinal_encoded.values())),
             )
         ]
     )
 
-    one_hot_encoded_pipeline = Pipeline(
+    one_hot_encode_pipeline = Pipeline(
         [("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=0.01))]
     )
 
-    target_encoded_pipeline = Pipeline(
+    target_encode_pipeline = Pipeline(
         [
             ("target", TargetEncoder()),
             ("scale", StandardScaler()),
         ]
     )
 
-    count_encoded_pipeline = Pipeline(
-        [
-            ("count", CountEncoder()),
-        ]
-    )
-
-    log_standardized_pipeline = Pipeline(
+    log_standardize_pipeline = Pipeline(
         [
             ("log_standard", log_standardize),
         ]
     )
 
-    standardized_pipeline = Pipeline(
+    standardize_pipeline = Pipeline(
         [
             ("scale", StandardScaler()),
         ]
@@ -254,33 +254,23 @@ def build_preprocessor():
 
     ct_for_reg = ColumnTransformer(
         [
-            ("map_label", map_label_pipeline, list(map_encode.keys())),
-            ("eq_val_label", eq_values_label_pipeline, list(eq_values_label.keys())),
-            (
-                "ordinal_encoded",
-                ordinal_encoded_pipeline,
-                list(ordinal_encoded),
-            ),
-            ("one_hot_encoded", one_hot_encoded_pipeline, one_hot_encoded),
-            ("target_encoded", target_encoded_pipeline, target_encoded),
-            ("count_encoded", count_encoded_pipeline, count_encoded),
-            ("log_standardized", log_standardized_pipeline, log_standardized),
-            ("standardized", standardized_pipeline, standardized),
+            ("map_label", map_label_pipeline, list(map_encoded.keys())),
+            ("eq_val_label", eq_values_label_pipeline, list(eq_values_labeled.keys())),
+            ("ordinal_encode", ordinal_encode_pipeline, list(ordinal_encoded)),
+            ("one_hot_encode", one_hot_encode_pipeline, one_hot_encoded),
+            ("target_encode", target_encode_pipeline, target_encoded),
+            ("log_standardize", log_standardize_pipeline, log_standardized),
+            ("standardize", standardize_pipeline, standardized),
         ],
         remainder="drop",
     )
 
     ct_for_tree = ColumnTransformer(
         [
-            ("map_label", map_label_pipeline, list(map_encode.keys())),
-            ("eq_val_label", eq_values_label_pipeline, list(eq_values_label.keys())),
-            (
-                "ordinal_encoded",
-                ordinal_encoded_pipeline,
-                list(ordinal_encoded),
-            ),
-            ("target_encoded", target_encoded_pipeline, target_encoded),
-            ("count_encoded", count_encoded_pipeline, count_encoded),
+            ("map_label", map_label_pipeline, list(map_encoded.keys())),
+            ("eq_val_label", eq_values_label_pipeline, list(eq_values_labeled.keys())),
+            ("ordinal_encode", ordinal_encode_pipeline, list(ordinal_encoded)),
+            ("target_encode", target_encode_pipeline, target_encoded),
         ],
         remainder="drop",
     )
