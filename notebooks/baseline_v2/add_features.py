@@ -142,7 +142,9 @@ def _livarea_x_qual(df: pl.DataFrame) -> pl.DataFrame:
 def _garage_car_ratio(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "GarageCarRatio"
     return df.with_columns(
-        (pl.col("GarageArea") / pl.col("GarageCars")).alias(new_feat_name)
+        (pl.col("GarageArea") / pl.col("GarageCars"))
+        .fill_nan(0)
+        .alias(new_feat_name)
     )
 
 
@@ -150,7 +152,7 @@ def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "FireplaceScore"
     return df.with_columns(
         (
-            pl.col("Fireplaces").fill_null(0).sqrt()
+            pl.col("Fireplaces").sqrt()
             * pl.when(pl.col("FireplaceQu") == "None")
             .then(0)
             .when(pl.col("FireplaceQu") == "TA")
@@ -160,7 +162,9 @@ def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
             .when(pl.col("FireplaceQu") == "Ex")
             .then(3)
             .pow(2)
-        ).alias(new_feat_name)
+        )
+        .fill_null(0)
+        .alias(new_feat_name)
     )
 
 
@@ -192,7 +196,7 @@ def _is_remodeled(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "IsRemodeled"
     return df.with_columns(
         (
-            pl.when(pl.col("YearRemodAdd") > pl.col("YearBuilt")).then(1).otherwise(0)
+            pl.when(pl.col("YearRemodAdd") > pl.col("YearBuilt").cast(pl.Int32)).then(1).otherwise(0)
         ).alias(new_feat_name)
     )
 
@@ -201,12 +205,34 @@ def _luxury_count(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "LuxuryCount"
     return df.with_columns(
         (
-            pl.when(pl.col("PoolArea") > 0).then(1)
-            + pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1)
-            + +pl.when(pl.col("MiscFeature") == "TenC").then(1)
-        ).alias(new_feat_name)
+            pl.when(pl.col("PoolArea") > 0).then(1) +
+            pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1) +
+            pl.when(pl.col("MiscFeature") == "TenC").then(1)
+        )
+        .fill_nan(0)
+        .fill_null(0)
+        .alias(new_feat_name)
     )
 
+def _condition(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "Condition"
+    mapping = {
+        "Artery": -1,
+        "Feedr": -1,
+        "Norm": 0,
+        "RRNn": -1,
+        "RRAn": -1,
+        "PosN": 1,
+        "PosA": 1,
+        "RRNe": -1,
+        "RRAe": -1,
+    }
+    return df.with_columns(
+        (
+            pl.col('Condition1').replace(mapping).cast(pl.Int8) + 
+            pl.col('Condition2').replace(mapping).cast(pl.Int8)
+        ).alias(new_feat_name)
+    )
 
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     new_feat_name = ''
@@ -220,12 +246,12 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
         _bath_score,
         _total_flr_sf,
         _is_overall_ge9,
-        _remod_age,
-        _building_age,
+        # _remod_age,
+        # _building_age,
         _bsmt_above_ratio,
         _liv_lot_ratio,
-        _sold_may2june,
-        _sold_after_rehman,
+        # _sold_may2june,
+        # _sold_after_rehman,
         _area_per_rooms,
         _has_garege,
         _target_exterior1_2,
@@ -236,6 +262,7 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
         _bsmt_fn_ratio,
         _is_remodeled,
         _luxury_count,
+        _condition,
     ]
 
     for f in functions:
@@ -249,4 +276,4 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
             raise RuntimeError(
                 f"[{f.__name__}] 特徴量の生成中にエラーが発生しました: {e}"
             ) from e
-    return df
+    return df.to_pandas()

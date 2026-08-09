@@ -22,30 +22,23 @@ from sklearn.preprocessing import (
     StandardScaler,
 )
 
-map_encoded = {
-    "Condition1": {
-        "Artery": -1,
-        "Feedr": -1,
-        "Norm": 0,
-        "RRNn": -1,
-        "RRAn": -1,
-        "PosN": 1,
-        "PosA": 1,
-        "RRNe": -1,
-        "RRAe": -1,
-    },
-    "Condition2": {
-        "Artery": -1,
-        "Feedr": -1,
-        "Norm": 0,
-        "RRNn": -1,
-        "RRAn": -1,
-        "PosN": 1,
-        "PosA": 1,
-        "RRNe": -1,
-        "RRAe": -1,
-    },
-}
+drop_feats = [
+    '2ndFlrSF',
+    '1stFlrSF',
+    'GrLivArea',
+    'Exterior1st',
+    'Exterior2nd',
+    'TotalBsmtSF',
+    'GarageCars',
+    'TotalFlrSF',
+    'YearBuilt',
+    'OverallQual',
+    'BsmtFullBath',
+    'Utilities',
+    'Street',
+    'Condition1',
+    'Condition2'
+]
 
 eq_values_labeled = {
     "Street": ["Pave"],
@@ -53,7 +46,6 @@ eq_values_labeled = {
     "Heating": ["GasA"],
     "PavedDrive": ["Y"],
     "RoofMatl": ["CompShg"],
-    "Condition2": ["PosN"],
     "SaleCondition": ["Normal"],
     "LandContour": ["Lvl"],
     "SaleType": ["New"],
@@ -91,7 +83,6 @@ one_hot_encoded = [
     "LotConfig",
     "LandSlope",
     "BldgType",
-    "HouseStyle",
     "RoofStyle",
     "HeatingQC",
     "Electrical",
@@ -104,6 +95,7 @@ one_hot_encoded = [
 target_encoded = [
     "MSSubClass",
     "Neighborhood",
+    "HouseStyle",
     "MSZoning",
     "TargetExterior1_2",
 ]
@@ -124,7 +116,6 @@ log_standardized = [
     "BsmtAboveRatio",
     "LivLotRatio",
     "LivArea_x_Qual",
-    "FireplaceScore",
 ]
 
 standardized = [
@@ -141,16 +132,18 @@ standardized = [
     "OverallScore",
     "BathScore",
     "IsOverAllGE9",
-    "SoldAfterRehman",
-    "SoldMay2June",
+    # "SoldAfterRehman",
+    # "SoldMay2June",
     "AreaPerRooms",
     "GarageCarRatio",
-    "RemodAge",
-    "BuildingAge",
+    # "RemodAge",
+    # "BuildingAge",
     "TotalOutdoorSF",
     "BsmtFnRatio",
     "IsRemodeled",
     "LuxuryCount",
+    "FireplaceScore",
+    "Condition",
 ]
 
 
@@ -180,21 +173,6 @@ def build_preprocessor():
                     inverse_func=np.expm1,
                     check_inverse=False,
                     feature_names_out="one-to-one",
-                ),
-            ),
-            ("scale", StandardScaler()),
-        ]
-    )
-
-    map_label_pipeline = Pipeline(
-        [
-            (
-                "ordinal",
-                OrdinalEncoder(
-                    categories=[
-                        sorted(mapping, key=mapping.get)
-                        for mapping in map_encoded.values()
-                    ]
                 ),
             ),
             ("scale", StandardScaler()),
@@ -252,27 +230,27 @@ def build_preprocessor():
         ]
     )
 
-    ct_for_reg = ColumnTransformer(
+    reg_ct = ColumnTransformer(
         [
-            ("map_label", map_label_pipeline, list(map_encoded.keys())),
             ("eq_val_label", eq_values_label_pipeline, list(eq_values_labeled.keys())),
             ("ordinal_encode", ordinal_encode_pipeline, list(ordinal_encoded)),
             ("one_hot_encode", one_hot_encode_pipeline, one_hot_encoded),
             ("target_encode", target_encode_pipeline, target_encoded),
             ("log_standardize", log_standardize_pipeline, log_standardized),
             ("standardize", standardize_pipeline, standardized),
+            ("drop", "drop", drop_feats),
         ],
         remainder="drop",
     )
 
-    ct_for_tree = ColumnTransformer(
+    tree_ct = ColumnTransformer(
         [
-            ("map_label", map_label_pipeline, list(map_encoded.keys())),
             ("eq_val_label", eq_values_label_pipeline, list(eq_values_labeled.keys())),
             ("ordinal_encode", ordinal_encode_pipeline, list(ordinal_encoded)),
             ("target_encode", target_encode_pipeline, target_encoded),
+            ("drop", "drop", drop_feats),
         ],
         remainder="drop",
     )
 
-    return [ct_for_tree, ct_for_reg]
+    return [tree_ct, reg_ct]
