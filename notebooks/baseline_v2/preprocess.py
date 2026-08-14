@@ -37,7 +37,9 @@ drop_feats = [
     'Utilities',
     'Street',
     'Condition1',
-    'Condition2'
+    'Condition2',
+    "Fireplaces",
+    "LandSlope",
 ]
 
 eq_values_labeled = {
@@ -46,12 +48,13 @@ eq_values_labeled = {
     "Heating": ["GasA"],
     "PavedDrive": ["Y"],
     "RoofMatl": ["CompShg"],
-    "SaleCondition": ["Normal"],
+    "SaleCondition": ["Abnormal"],
     "LandContour": ["Lvl"],
     "SaleType": ["New"],
     "Foundation": ["BrkTil", "CBlock", "PConc"],
     "Utilities": ["AllPub"],
     "GarageType": ["Attchd", "BuiltIn"],
+    # "BldgType": ["1Fam","TwnhsE"],
 }
 
 
@@ -73,22 +76,18 @@ ordinal_encoded = {
     "FireplaceQu": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "GarageQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "GarageCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    "HeatingQC": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "LotShape": ["Reg", "IR1", "IR2", "IR3"],
     "BsmtCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "BsmtQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "BsmtExposure": ["None", "No", "Mn", "Av", "Gd"],
+    "BsmtFinType1": ["None", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"],
+    "BsmtFinType2": ["None", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"],
 }
 
 one_hot_encoded = [
-    "LotConfig",
-    "LandSlope",
-    "BldgType",
     "RoofStyle",
-    "HeatingQC",
     "Electrical",
-    "MasVnrType",
-    "BsmtFinType1",
-    "BsmtFinType2",
     "GarageFinish",
 ]
 
@@ -98,6 +97,9 @@ target_encoded = [
     "HouseStyle",
     "MSZoning",
     "TargetExterior1_2",
+    "BldgType",
+    "LotConfig",
+    "MasVnrType",
 ]
 
 count_encoded = []
@@ -122,9 +124,7 @@ standardized = [
     "OverallCond",
     "FullBath",
     "BedroomAbvGr",
-    "KitchenAbvGr",
     "TotRmsAbvGrd",
-    "Fireplaces",
     "GarageYrBlt",
     "GarageArea",
     "MoSold",
@@ -136,14 +136,19 @@ standardized = [
     # "SoldMay2June",
     "AreaPerRooms",
     "GarageCarRatio",
-    # "RemodAge",
-    # "BuildingAge",
+    "RemodAge",
+    "BuildingAge",
     "TotalOutdoorSF",
     "BsmtFnRatio",
     "IsRemodeled",
     "LuxuryCount",
     "FireplaceScore",
     "Condition",
+    "KitchenScore",
+    "KitchenAbvGr",
+    "MissingNormalyUtilsCount",
+    "BsmtFinRatio",
+    "BsmtUnfRatio",
 ]
 
 

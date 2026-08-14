@@ -36,7 +36,7 @@ def _remod_age(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "RemodAge"
     return df.with_columns(
         (
-            pl.col("YrSold").fill_null(strategy="mean")
+            pl.col("YrSold").cast(pl.Int32).fill_null(strategy="mean")
             - pl.col("YearRemodAdd").fill_null(strategy="mean")
         )
         .clip(lower_bound=0)  # 販売より後に施工するパターンに対応
@@ -49,11 +49,40 @@ def _building_age(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "BuildingAge"
     return df.with_columns(
         (
-            pl.col("YrSold").fill_null(strategy="mean")
+            pl.col("YrSold").cast(pl.Int32).fill_null(strategy="mean")
             - pl.col("YearBuilt").fill_null(strategy="mean")
         )
         .clip(lower_bound=0)  # 販売より後に完成するパターンに対応
         .alias(new_feat_name)
+    )
+
+
+def _bsmt_fin_ratio(df: pl.DataFrame) -> pl.DataFrame:
+    # BsmtFinSF1 / TotalBsmtSF
+    new_feat_name = "BsmtFinRatio"
+    return df.with_columns(
+        (pl.col("BsmtFinSF1").fill_null(0) / pl.col("TotalBsmtSF").fill_null(0))
+        .fill_nan(0)
+        .replace([np.inf, -np.inf], 0)
+        .alias(new_feat_name)
+    )
+
+
+def _bsmt_unf_ratio(df: pl.DataFrame) -> pl.DataFrame:
+    # BsmtUnfSF / TotalBsmtSF
+    new_feat_name = "BsmtUnfRatio"
+    return df.with_columns(
+        (pl.col("BsmtUnfSF").fill_null(0) / pl.col("TotalBsmtSF").fill_null(0))
+        .fill_nan(0)
+        .replace([np.inf, -np.inf], 0)
+        .alias(new_feat_name)
+    )
+
+
+def _no_bsmt(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "NoBsmt"
+    return df.with_columns(
+        pl.when(pl.col("TotalBsmtSF") == 0).then(1).otherwise(0).alias(new_feat_name)
     )
 
 
@@ -65,6 +94,13 @@ def _bsmt_above_ratio(df: pl.DataFrame) -> pl.DataFrame:
         .fill_nan(0)
         .replace([np.inf, -np.inf], 0)
         .alias(new_feat_name)
+    )
+
+
+def _is_culdsac(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "IsCuldsac"
+    return df.with_columns(
+        pl.when(pl.col("LotConfig") == "CulDSac").then(1).otherwise(0).alias(new_feat_name)
     )
 
 
@@ -90,6 +126,8 @@ def _sold_may2june(df: pl.DataFrame) -> pl.DataFrame:
 def _sold_after_rehman(df: pl.DataFrame) -> pl.DataFrame:
     # リーマンショック直後(2008年10月～2008年12月)に売れたか
     # 開始日は9/15だが売却日のデータがないため月単位で2008年10月を閾値とする
+    # 下のAmes市の住宅価格指数では実はそんなに影響なかった（ほぼ横ばい）ので意味なさそう
+    # https://fred.stlouisfed.org/series/ATNHPIUS11180Q
     new_feat_name = "SoldAfterRehman"
     yr_sold = pl.col("YrSold").fill_null(0)
     mo_sold = pl.col("MoSold").fill_null(0)
@@ -114,12 +152,12 @@ def _area_per_rooms(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _has_garege(df: pl.DataFrame) -> pl.DataFrame:
-    new_feat_name = "HasGarage"
+def _no_garege(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "NoGarage"
     return df.with_columns(
         pl.when(pl.col("GarageQual") == "None")
-        .then(0)
-        .otherwise(1)
+        .then(1)
+        .otherwise(0)
         .alias(new_feat_name)
     )
 
@@ -207,12 +245,17 @@ def _luxury_count(df: pl.DataFrame) -> pl.DataFrame:
         (
             pl.when(pl.col("PoolArea") > 0).then(1) +
             pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1) +
-            pl.when(pl.col("MiscFeature") == "TenC").then(1)
+            pl.when(pl.col("MiscFeature") == "TenC").then(1) +
+            pl.when(pl.col("GarageCars") >= 3).then(1) +
+            pl.when(pl.col("KitchenQual") == "Ex").then(1) +
+            pl.when(pl.col("BsmtQual") == "Ex").then(1) +
+            pl.when(pl.col("HeatingQC") == "Ex").then(1)
         )
         .fill_nan(0)
         .fill_null(0)
         .alias(new_feat_name)
     )
+
 
 def _condition(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "Condition"
@@ -234,6 +277,48 @@ def _condition(df: pl.DataFrame) -> pl.DataFrame:
         ).alias(new_feat_name)
     )
 
+
+def _kitchen_score(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'KitchenScore'
+    qual_map = {
+        "None": 0,
+        "Po" : 1,
+        "Fa" : 2,
+        "TA" : 3,
+        "Gd" : 4,
+        "Ex" : 5
+    }
+    return df.with_columns(
+        (
+            pl.col('KitchenAbvGr').fill_nan(0) *
+            pl.col('KitchenQual').replace(qual_map).cast(pl.Int8)
+        ).alias(new_feat_name)
+    )
+
+
+def _lower_bldg_types(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = 'LowerBldgTypes'
+    return df.with_columns(
+        (
+            pl.when(~pl.col('BldgType').is_in(['1Fam', 'TwnhsE'])).then(1).otherwise(0)
+        ).alias(new_feat_name)
+    )
+
+
+def _missing_normaly_utils_count(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "MissingNormalyUtilsCount"
+    return df.with_columns(
+        (
+            pl.when(pl.col("CentralAir") == "None").then(1) +
+            pl.when(pl.col("GarageType") == "None").then(1) +
+            pl.when(pl.col("BsmtQual")== "None").then(1) +
+            pl.when(pl.col("PavedDrive").is_in(["N","P"])).then(1)
+        )
+        .fill_null(0)
+        .alias(new_feat_name)
+    )
+
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     new_feat_name = ''
 #     return df.with_columns(
@@ -246,14 +331,14 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
         _bath_score,
         _total_flr_sf,
         _is_overall_ge9,
-        # _remod_age,
-        # _building_age,
+        _remod_age,
+        _building_age,
         _bsmt_above_ratio,
         _liv_lot_ratio,
         # _sold_may2june,
         # _sold_after_rehman,
         _area_per_rooms,
-        _has_garege,
+        _no_garege,
         _target_exterior1_2,
         _livarea_x_qual,
         _garage_car_ratio,
@@ -263,6 +348,13 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
         _is_remodeled,
         _luxury_count,
         _condition,
+        _kitchen_score,
+        _lower_bldg_types,
+        _missing_normaly_utils_count,
+        _bsmt_fin_ratio,
+        _bsmt_unf_ratio,
+        _no_bsmt,
+        _is_culdsac,
     ]
 
     for f in functions:
