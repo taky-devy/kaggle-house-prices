@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import polars as pl
 
 
@@ -319,13 +320,32 @@ def _missing_normaly_utils_count(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def expensive_neighborhoods(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "ExNeighborhoods"
+    return df.with_columns(
+        pl.when(pl.col("Neighborhood").is_in([
+            "StoneBr", "NoRidge", "NridgHt"  # グループ平均トップ3
+        ])).then(1).otherwise(0).alias(new_feat_name)
+    )
+
+
+# 1階に対する2階の面積比率
+def _2nd_1st_flr_ratio(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "2nd1stFlrRatio"
+    return df.with_columns(
+        (pl.col("2ndFlrSF") / pl.col("1stFlrSF"))
+        .fill_nan(0)
+        .replace([np.inf, -np.inf], 0)
+        .alias(new_feat_name)
+    )
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     new_feat_name = ''
 #     return df.with_columns(
 #     )
 
 
-def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
+def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
     functions = [
         _over_all_score,
         _bath_score,
@@ -335,8 +355,8 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
         _building_age,
         _bsmt_above_ratio,
         _liv_lot_ratio,
-        # _sold_may2june,
-        # _sold_after_rehman,
+        # _sold_may2june,  効いてなさげ
+        # _sold_after_rehman,  当時の価格指数が横ばいなので意味なさそう
         _area_per_rooms,
         _no_garege,
         _target_exterior1_2,
@@ -355,6 +375,8 @@ def add_modified_features(df: pl.DataFrame) -> pl.DataFrame:
         _bsmt_unf_ratio,
         _no_bsmt,
         _is_culdsac,
+        _2nd_1st_flr_ratio,
+        expensive_neighborhoods,
     ]
 
     for f in functions:
