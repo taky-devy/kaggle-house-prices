@@ -320,7 +320,7 @@ def _missing_normaly_utils_count(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def expensive_neighborhoods(df: pl.DataFrame) -> pl.DataFrame:
+def _expensive_neighborhoods(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "ExNeighborhoods"
     return df.with_columns(
         pl.when(pl.col("Neighborhood").is_in([
@@ -376,7 +376,7 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _no_bsmt,
         _is_culdsac,
         _2nd_1st_flr_ratio,
-        expensive_neighborhoods,
+        _expensive_neighborhoods,
     ]
 
     for f in functions:
