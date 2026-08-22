@@ -19,27 +19,38 @@ from sklearn.preprocessing import (
     FunctionTransformer,
     OneHotEncoder,
     OrdinalEncoder,
-    StandardScaler,
+    RobustScaler,
 )
 
-drop_feats = [
-    '2ndFlrSF',
-    '1stFlrSF',
-    'GrLivArea',
-    'Exterior1st',
-    'Exterior2nd',
-    'TotalBsmtSF',
-    'GarageCars',
-    'TotalFlrSF',
-    'YearBuilt',
-    'OverallQual',
-    'BsmtFullBath',
-    'Utilities',
+# 各特徴と前処理のマッピング定義
+drop_feats = [ # ColumnTransformerのremainder="drop"でもドロップされるが、明示的に書くことで意図を明確化
+    # 追加した特徴に統合したため (多重共線性を懸念)
+    '2ndFlrSF', # GrLivArea
+    '1stFlrSF', # GrLivArea
+    'GrLivArea',   # TotalFlrSF
+    'TotalBsmtSF', # TotalFlrSF
+    'Exterior1st', # Exterior1_2
+    'Exterior2nd', # Exterior1_2
+    'BsmtFullBath', # BathScore
+    "Fireplaces", # FireplaceScore
+    'OverallQual', # OverallScore, LivArea_x_Qual
+    'Condition1', # Condition
+    'Condition2', # Condition
+        
+    # より説明的な特徴を追加したため
+    'YearBuilt', # RemodAge, BuildingAge
+    
+    # 欠損多すぎのため
     'Street',
-    'Condition1',
-    'Condition2',
-    "Fireplaces",
-    "LandSlope",
+    
+    # コンペディスカッションや参考ノートにて寄与が低いとされていたため
+    'Utilities',
+    
+    # 説明コストが重そうなので保留
+    # LandSlope
+    #   傾斜地はマイナス要素っぽいが景観でプラスに働くことがあるらしい
+    #   平坦はプラス要素っぽいが計画区域の安物は平地に多いとも考えられる
+    "LandSlope",  
 ]
 
 eq_values_labeled = {
@@ -56,7 +67,6 @@ eq_values_labeled = {
     "GarageType": ["Attchd", "BuiltIn"],
     # "BldgType": ["1Fam","TwnhsE"],
 }
-
 
 ordinal_encoded = {
     "KitchenQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
@@ -102,8 +112,6 @@ target_encoded = [
     "MasVnrType",
 ]
 
-count_encoded = []
-
 log_standardized = [
     "LotFrontage",
     "LotArea",
@@ -122,18 +130,17 @@ log_standardized = [
 
 standardized = [
     "OverallCond",
+    'TotalFlrSF',
     "FullBath",
     "BedroomAbvGr",
     "TotRmsAbvGrd",
+    'GarageCars',
     "GarageYrBlt",
     "GarageArea",
     "MoSold",
     "YrSold",
     "OverallScore",
     "BathScore",
-    "IsOverAllGE9",
-    # "SoldAfterRehman",
-    # "SoldMay2June",
     "AreaPerRooms",
     "GarageCarRatio",
     "RemodAge",
@@ -152,6 +159,7 @@ standardized = [
 ]
 
 
+# TargetTransformerの定義
 def build_target_transformer():
     return Pipeline(
         [
@@ -163,25 +171,18 @@ def build_target_transformer():
                     check_inverse=False,
                 ),
             ),
-            ("scale", StandardScaler()),
+            ("scale", RobustScaler()),
         ]
     )
 
-
+# Column(Feature)Transformerの定義
 def build_preprocessor():
-    log_standardize = Pipeline(
-        [
-            (
-                "log",
-                FunctionTransformer(
-                    np.log1p,
-                    inverse_func=np.expm1,
-                    check_inverse=False,
-                    feature_names_out="one-to-one",
-                ),
-            ),
-            ("scale", StandardScaler()),
-        ]
+    
+    log_transformer = FunctionTransformer(
+        np.log1p,
+        inverse_func=np.expm1,
+        check_inverse=False,
+        feature_names_out="one-to-one",
     )
 
     def _eq_values_transform(X, mapping=eq_values_labeled):
@@ -191,58 +192,50 @@ def build_preprocessor():
             out[:, i] = np.isin(X[:, i], values).astype(int)
         return out
 
-    eq_values_label_pipeline = Pipeline(
-        [
-            (
-                "eq",
-                FunctionTransformer(
-                    _eq_values_transform, feature_names_out="one-to-one"
-                ),
-            ),
-            ("scale", StandardScaler()),
-        ]
+    eq_values_transformer = FunctionTransformer(
+        _eq_values_transform,
+        feature_names_out="one-to-one"
     )
 
-    ordinal_encode_pipeline = Pipeline(
-        [
-            (
-                "ordinal",
-                OrdinalEncoder(categories=list(ordinal_encoded.values())),
-            )
-        ]
-    )
+    ordinal_encoder = OrdinalEncoder(categories=list(ordinal_encoded.values()))
 
-    one_hot_encode_pipeline = Pipeline(
-        [("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=0.01))]
-    )
-
-    target_encode_pipeline = Pipeline(
-        [
-            ("target", TargetEncoder()),
-            ("scale", StandardScaler()),
-        ]
-    )
-
-    log_standardize_pipeline = Pipeline(
-        [
-            ("log_standard", log_standardize),
-        ]
-    )
-
-    standardize_pipeline = Pipeline(
-        [
-            ("scale", StandardScaler()),
-        ]
-    )
+    one_hot_encoder = OneHotEncoder(handle_unknown="ignore", min_frequency=0.01)
 
     reg_ct = ColumnTransformer(
         [
-            ("eq_val_label", eq_values_label_pipeline, list(eq_values_labeled.keys())),
-            ("ordinal_encode", ordinal_encode_pipeline, list(ordinal_encoded)),
-            ("one_hot_encode", one_hot_encode_pipeline, one_hot_encoded),
-            ("target_encode", target_encode_pipeline, target_encoded),
-            ("log_standardize", log_standardize_pipeline, log_standardized),
-            ("standardize", standardize_pipeline, standardized),
+            ("eq_val_label", 
+                Pipeline([
+                    ("label",eq_values_transformer),
+                    ("scale",RobustScaler()),
+                    ]),
+                list(eq_values_labeled.keys())
+            ),
+            ("ordinal_encode",
+                Pipeline([
+                    ("encode",ordinal_encoder),
+                    ("scale",RobustScaler()),
+                    ]),
+                list(ordinal_encoded)
+            ),
+            ("one_hot_encode",
+                Pipeline([
+                    ("encode",one_hot_encoder),
+                    ("scale",RobustScaler(with_centering=False)),
+                    ]),
+                one_hot_encoded
+            ),
+            ("target_encode",
+                Pipeline([
+                    ("encode",TargetEncoder()),
+                    ("scale",RobustScaler()),
+                    ]),
+                    target_encoded),
+            ("log", 
+                Pipeline([
+                    ("log",log_transformer),
+                    ("scale",RobustScaler()),
+                    ]), log_standardized),
+            ("scale", RobustScaler(), standardized),
             ("drop", "drop", drop_feats),
         ],
         remainder="drop",
@@ -250,9 +243,12 @@ def build_preprocessor():
 
     tree_ct = ColumnTransformer(
         [
-            ("eq_val_label", eq_values_label_pipeline, list(eq_values_labeled.keys())),
-            ("ordinal_encode", ordinal_encode_pipeline, list(ordinal_encoded)),
-            ("target_encode", target_encode_pipeline, target_encoded),
+            ("eq_val_label", eq_values_transformer, list(eq_values_labeled.keys())),
+            ("ordinal_encode", ordinal_encoder, list(ordinal_encoded)),
+            ("one_hot_encode", one_hot_encoder, one_hot_encoded),
+            ("target_encode", TargetEncoder(), target_encoded),
+            ("log", "passthrough", log_standardized),
+            ("scale", "passthrough", standardized),
             ("drop", "drop", drop_feats),
         ],
         remainder="drop",
