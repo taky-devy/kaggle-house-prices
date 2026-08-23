@@ -39,6 +39,8 @@ drop_feats = [ # ColumnTransformerのremainder="drop"でもドロップされる
         
     # より説明的な特徴を追加したため
     'YearBuilt', # RemodAge, BuildingAge
+    "MoSold",
+    "YrSold",
     
     # 欠損多すぎのため
     'Street',
@@ -137,8 +139,7 @@ standardized = [
     'GarageCars',
     "GarageYrBlt",
     "GarageArea",
-    "MoSold",
-    "YrSold",
+
     "OverallScore",
     "BathScore",
     "AreaPerRooms",
