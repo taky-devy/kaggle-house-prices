@@ -12,7 +12,6 @@
 """
 
 import numpy as np
-from category_encoders import TargetEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import (
@@ -20,6 +19,7 @@ from sklearn.preprocessing import (
     OneHotEncoder,
     OrdinalEncoder,
     RobustScaler,
+    TargetEncoder,
 )
 
 # 各特徴と前処理のマッピング定義

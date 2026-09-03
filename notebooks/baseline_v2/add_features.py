@@ -1,3 +1,5 @@
+# TODO BsmtQual, BsmtCond, BsmtExposure の2乗和平方根 * 広さ を足す
+
 import numpy as np
 import pandas as pd
 import polars as pl
