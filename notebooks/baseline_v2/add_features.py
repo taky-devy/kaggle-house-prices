@@ -58,17 +58,6 @@ def _building_age(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _bsmt_fin_ratio(df: pl.DataFrame) -> pl.DataFrame:
-    # BsmtFinSF1 / TotalBsmtSF
-    new_feat_name = "BsmtFinRatio"
-    return df.with_columns(
-        (pl.col("BsmtFinSF1").fill_null(0) / pl.col("TotalBsmtSF").fill_null(0))
-        .fill_nan(0)
-        .replace([np.inf, -np.inf], 0)
-        .alias(new_feat_name)
-    )
-
-
 def _bsmt_unf_ratio(df: pl.DataFrame) -> pl.DataFrame:
     # BsmtUnfSF / TotalBsmtSF
     new_feat_name = "BsmtUnfRatio"
@@ -101,7 +90,10 @@ def _bsmt_above_ratio(df: pl.DataFrame) -> pl.DataFrame:
 def _is_culdsac(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "IsCuldsac"
     return df.with_columns(
-        pl.when(pl.col("LotConfig") == "CulDSac").then(1).otherwise(0).alias(new_feat_name)
+        pl.when(pl.col("LotConfig") == "CulDSac")
+        .then(1)
+        .otherwise(0)
+        .alias(new_feat_name)
     )
 
 
@@ -181,9 +173,7 @@ def _livarea_x_qual(df: pl.DataFrame) -> pl.DataFrame:
 def _garage_car_ratio(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "GarageCarRatio"
     return df.with_columns(
-        (pl.col("GarageArea") / pl.col("GarageCars"))
-        .fill_nan(0)
-        .alias(new_feat_name)
+        (pl.col("GarageArea") / pl.col("GarageCars")).fill_nan(0).alias(new_feat_name)
     )
 
 
@@ -235,7 +225,9 @@ def _is_remodeled(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "IsRemodeled"
     return df.with_columns(
         (
-            pl.when(pl.col("YearRemodAdd") > pl.col("YearBuilt").cast(pl.Int32)).then(1).otherwise(0)
+            pl.when(pl.col("YearRemodAdd") > pl.col("YearBuilt").cast(pl.Int32))
+            .then(1)
+            .otherwise(0)
         ).alias(new_feat_name)
     )
 
@@ -244,13 +236,13 @@ def _luxury_count(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "LuxuryCount"
     return df.with_columns(
         (
-            pl.when(pl.col("PoolArea") > 0).then(1) +
-            pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1) +
-            pl.when(pl.col("MiscFeature") == "TenC").then(1) +
-            pl.when(pl.col("GarageCars") >= 3).then(1) +
-            pl.when(pl.col("KitchenQual") == "Ex").then(1) +
-            pl.when(pl.col("BsmtQual") == "Ex").then(1) +
-            pl.when(pl.col("HeatingQC") == "Ex").then(1)
+            pl.when(pl.col("PoolArea") > 0).then(1)
+            + pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1)
+            + pl.when(pl.col("MiscFeature") == "TenC").then(1)
+            + pl.when(pl.col("GarageCars") >= 3).then(1)
+            + pl.when(pl.col("KitchenQual") == "Ex").then(1)
+            + pl.when(pl.col("BsmtQual") == "Ex").then(1)
+            + pl.when(pl.col("HeatingQC") == "Ex").then(1)
         )
         .fill_nan(0)
         .fill_null(0)
@@ -273,35 +265,28 @@ def _condition(df: pl.DataFrame) -> pl.DataFrame:
     }
     return df.with_columns(
         (
-            pl.col('Condition1').replace(mapping).cast(pl.Int8) + 
-            pl.col('Condition2').replace(mapping).cast(pl.Int8)
+            pl.col("Condition1").replace(mapping).cast(pl.Int8)
+            + pl.col("Condition2").replace(mapping).cast(pl.Int8)
         ).alias(new_feat_name)
     )
 
 
 def _kitchen_score(df: pl.DataFrame) -> pl.DataFrame:
-    new_feat_name = 'KitchenScore'
-    qual_map = {
-        "None": 0,
-        "Po" : 1,
-        "Fa" : 2,
-        "TA" : 3,
-        "Gd" : 4,
-        "Ex" : 5
-    }
+    new_feat_name = "KitchenScore"
+    qual_map = {"None": 0, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
     return df.with_columns(
         (
-            pl.col('KitchenAbvGr').fill_nan(0) *
-            pl.col('KitchenQual').replace(qual_map).cast(pl.Int8)
+            pl.col("KitchenAbvGr").fill_nan(0)
+            * pl.col("KitchenQual").replace(qual_map).cast(pl.Int8)
         ).alias(new_feat_name)
     )
 
 
 def _lower_bldg_types(df: pl.DataFrame) -> pl.DataFrame:
-    new_feat_name = 'LowerBldgTypes'
+    new_feat_name = "LowerBldgTypes"
     return df.with_columns(
         (
-            pl.when(~pl.col('BldgType').is_in(['1Fam', 'TwnhsE'])).then(1).otherwise(0)
+            pl.when(~pl.col("BldgType").is_in(["1Fam", "TwnhsE"])).then(1).otherwise(0)
         ).alias(new_feat_name)
     )
 
@@ -310,10 +295,10 @@ def _missing_normaly_utils_count(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "MissingNormalyUtilsCount"
     return df.with_columns(
         (
-            pl.when(pl.col("CentralAir") == "None").then(1) +
-            pl.when(pl.col("GarageType") == "None").then(1) +
-            pl.when(pl.col("BsmtQual")== "None").then(1) +
-            pl.when(pl.col("PavedDrive").is_in(["N","P"])).then(1)
+            pl.when(pl.col("CentralAir") == "None").then(1)
+            + pl.when(pl.col("GarageType") == "None").then(1)
+            + pl.when(pl.col("BsmtQual") == "None").then(1)
+            + pl.when(pl.col("PavedDrive").is_in(["N", "P"])).then(1)
         )
         .fill_null(0)
         .alias(new_feat_name)
@@ -323,9 +308,18 @@ def _missing_normaly_utils_count(df: pl.DataFrame) -> pl.DataFrame:
 def _expensive_neighborhoods(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "ExNeighborhoods"
     return df.with_columns(
-        pl.when(pl.col("Neighborhood").is_in([
-            "StoneBr", "NoRidge", "NridgHt"  # グループ平均トップ3
-        ])).then(1).otherwise(0).alias(new_feat_name)
+        pl.when(
+            pl.col("Neighborhood").is_in(
+                [
+                    "StoneBr",
+                    "NoRidge",
+                    "NridgHt",  # グループ平均トップ3
+                ]
+            )
+        )
+        .then(1)
+        .otherwise(0)
+        .alias(new_feat_name)
     )
 
 
@@ -338,6 +332,7 @@ def _2nd_1st_flr_ratio(df: pl.DataFrame) -> pl.DataFrame:
         .replace([np.inf, -np.inf], 0)
         .alias(new_feat_name)
     )
+
 
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     new_feat_name = ''
@@ -371,7 +366,6 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _kitchen_score,
         _lower_bldg_types,
         _missing_normaly_utils_count,
-        _bsmt_fin_ratio,
         _bsmt_unf_ratio,
         _no_bsmt,
         _is_culdsac,
