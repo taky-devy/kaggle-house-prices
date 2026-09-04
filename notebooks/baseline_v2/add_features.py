@@ -181,18 +181,11 @@ def _garage_car_ratio(df: pl.DataFrame) -> pl.DataFrame:
 
 def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "FireplaceScore"
+    qual_map = {"None": 1, "Po": 2, "Fa": 3, "TA": 4, "Gd": 5, "Ex": 6}
     return df.with_columns(
         (
             pl.col("Fireplaces").sqrt()
-            * pl.when(pl.col("FireplaceQu") == "None")
-            .then(0)
-            .when(pl.col("FireplaceQu") == "TA")
-            .then(1)
-            .when(pl.col("FireplaceQu") == "Gd")
-            .then(2)
-            .when(pl.col("FireplaceQu") == "Ex")
-            .then(3)
-            .pow(2)
+            * pl.col("FireplaceQu").replace(qual_map).cast(pl.Int8)
         )
         .fill_null(0)
         .alias(new_feat_name)
@@ -202,23 +195,25 @@ def _fireplace_score(df: pl.DataFrame) -> pl.DataFrame:
 def _total_outdoor_sf(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "TotalOutdoorSF"
     return df.with_columns(
-        (
-            pl.col("WoodDeckSF")
-            + pl.col("OpenPorchSF")
-            + pl.col("EnclosedPorch")
-            + pl.col("3SsnPorch")
-            + pl.col("ScreenPorch")
+        pl.sum_horizontal(
+            "WoodDeckSF", "OpenPorchSF", "EnclosedPorch", "3SsnPorch", "ScreenPorch"
         ).alias(new_feat_name)
     )
 
 
-def _bsmt_fn_ratio(df: pl.DataFrame) -> pl.DataFrame:
-    new_feat_name = "BsmtFnRatio"
+def _bsmt_score(df: pl.DataFrame) -> pl.DataFrame:
+    new_feat_name = "BsmtScore"
+    qual_map = {"None": 1, "Po": 2, "Fa": 3, "TA": 4, "Gd": 5, "Ex": 6}
+    cond_map = {"None": 1, "Po": 2, "Fa": 3, "TA": 4, "Gd": 5, "Ex": 6}
+    expo_map = {"None": 1, "No": 2, "Mn": 3, "Av": 4, "Gd": 5}
     return df.with_columns(
         (
-            pl.when(pl.col("BsmtQual") == "None")
-            .then(0)
-            .otherwise(pl.lit(1) - (pl.col("BsmtUnfSF") / pl.col("TotalBsmtSF")))
+            pl.col("TotalBsmtSF")
+            * pl.mean_horizontal(
+                pl.col("BsmtQual").replace(qual_map).cast(pl.Int8),
+                pl.col("BsmtCond").replace(cond_map).cast(pl.Int8),
+                pl.col("BsmtExposure").replace(expo_map).cast(pl.Int8),
+            )
         ).alias(new_feat_name)
     )
 
@@ -238,23 +233,20 @@ def _luxury_count(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "LuxuryCount"
     return df.with_columns(
         (
-            pl.when(pl.col("PoolArea") > 0).then(1)
-            + pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1)
-            + pl.when(pl.col("MiscFeature") == "TenC").then(1)
-            + pl.when(pl.col("GarageCars") >= 3).then(1)
-            + pl.when(pl.col("KitchenQual") == "Ex").then(1)
-            + pl.when(pl.col("BsmtQual") == "Ex").then(1)
-            + pl.when(pl.col("HeatingQC") == "Ex").then(1)
-        )
-        .fill_nan(0)
-        .fill_null(0)
-        .alias(new_feat_name)
+            pl.when(pl.col("PoolArea") > 0).then(1).otherwise(0)
+            + pl.when(pl.col("FireplaceQu").is_in(["Gd", "Ex"])).then(1).otherwise(0)
+            + pl.when(pl.col("MiscFeature") == "TenC").then(1).otherwise(0)
+            + pl.when(pl.col("GarageCars") >= 3).then(1).otherwise(0)
+            + pl.when(pl.col("KitchenQual") == "Ex").then(1).otherwise(0)
+            + pl.when(pl.col("BsmtQual") == "Ex").then(1).otherwise(0)
+            + pl.when(pl.col("HeatingQC") == "Ex").then(1).otherwise(0)
+        ).alias(new_feat_name)
     )
 
 
 def _condition(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "Condition"
-    mapping = {
+    cond_map = {
         "Artery": -1,
         "Feedr": -1,
         "Norm": 0,
@@ -267,8 +259,8 @@ def _condition(df: pl.DataFrame) -> pl.DataFrame:
     }
     return df.with_columns(
         (
-            pl.col("Condition1").replace(mapping).cast(pl.Int8)
-            + pl.col("Condition2").replace(mapping).cast(pl.Int8)
+            pl.col("Condition1").replace(cond_map).cast(pl.Int8)
+            + pl.col("Condition2").replace(cond_map).cast(pl.Int8)
         ).alias(new_feat_name)
     )
 
@@ -297,10 +289,10 @@ def _missing_normaly_utils_count(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "MissingNormalyUtilsCount"
     return df.with_columns(
         (
-            pl.when(pl.col("CentralAir") == "None").then(1)
-            + pl.when(pl.col("GarageType") == "None").then(1)
-            + pl.when(pl.col("BsmtQual") == "None").then(1)
-            + pl.when(pl.col("PavedDrive").is_in(["N", "P"])).then(1)
+            pl.when(pl.col("CentralAir") == "None").then(1).otherwise(0)
+            + pl.when(pl.col("GarageType") == "None").then(1).otherwise(0)
+            + pl.when(pl.col("BsmtQual") == "None").then(1).otherwise(0)
+            + pl.when(pl.col("PavedDrive").is_in(["N", "P"])).then(1).otherwise(0)
         )
         .fill_null(0)
         .alias(new_feat_name)
@@ -361,7 +353,6 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _garage_car_ratio,
         _fireplace_score,
         _total_outdoor_sf,
-        _bsmt_fn_ratio,
         _is_remodeled,
         _luxury_count,
         _condition,
@@ -369,6 +360,7 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _lower_bldg_types,
         _missing_normaly_utils_count,
         _bsmt_unf_ratio,
+        _bsmt_score,
         _no_bsmt,
         _is_culdsac,
         _2nd_1st_flr_ratio,
