@@ -119,12 +119,13 @@ log_standardized = [
     "BsmtFinSF2",
     "MasVnrArea",
     "EnclosedPorch",
-    "HalfBath",
     "OpenPorchSF",
     "WoodDeckSF",
     "BsmtAboveRatio",
     "LivLotRatio",
     "LivArea_x_Qual",
+    "BsmtUnfRatio",
+    "TotalOutdoorSF",
 ]
 
 standardized = [
@@ -142,8 +143,6 @@ standardized = [
     "GarageCarRatio",
     "RemodAge",
     "BuildingAge",
-    "TotalOutdoorSF",
-    "BsmtFnRatio",
     "IsRemodeled",
     "LuxuryCount",
     "FireplaceScore",
@@ -151,7 +150,8 @@ standardized = [
     "KitchenScore",
     "KitchenAbvGr",
     "MissingNormalyUtilsCount",
-    "BsmtUnfRatio",
+    "HalfBath",
+    "BsmtScore",
 ]
 
 
@@ -233,7 +233,7 @@ def build_preprocessor():
                 "target_encode",
                 Pipeline(
                     [
-                        ("encode", TargetEncoder()),
+                        ("encode", TargetEncoder(target_type="continuous")),
                         ("scale", RobustScaler()),
                     ]
                 ),
@@ -260,7 +260,7 @@ def build_preprocessor():
             ("eq_val_label", eq_values_transformer, list(eq_values_labeled.keys())),
             ("ordinal_encode", ordinal_encoder, list(ordinal_encoded)),
             ("one_hot_encode", one_hot_encoder, one_hot_encoded),
-            ("target_encode", TargetEncoder(), target_encoded),
+            ("target_encode", TargetEncoder(target_type="continuous"), target_encoded),
             ("log", "passthrough", log_standardized),
             ("scale", "passthrough", standardized),
             ("drop", "drop", drop_feats),

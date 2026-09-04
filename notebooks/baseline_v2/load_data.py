@@ -82,5 +82,6 @@ def load_data():
     # Reform splits
     train = df.loc[train.index, :]
     test = df.loc[test.index, :]
+    test = test.iloc[:, :-1]  # 空のSalePrice列が末尾にあるので消す
     train, test = cast(tuple[pd.DataFrame, pd.DataFrame], [train, test])
     return train, test
