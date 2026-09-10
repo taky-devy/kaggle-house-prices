@@ -26,7 +26,7 @@ from sklearn.preprocessing import (
 drop_feats = [
     # より説明的な生の特徴があるため
     "HouseStyle",  # MSSubClassが内包している
-    # 追加した特徴に統合したため (多重共線性を懸念)
+    # 追加した特徴に統合したため
     "2ndFlrSF",  # GrLivArea
     "1stFlrSF",  # GrLivArea
     "GrLivArea",  # TotalFlrSF
@@ -34,16 +34,36 @@ drop_feats = [
     "Exterior1st",  # Exterior1_2
     "Exterior2nd",  # Exterior1_2
     "BsmtFullBath",  # BathScore
+    "BsmtHalfBath",  # BathScore
+    "FullBath",  # BathScore
+    "HalfBath",  # BathScore
     "Fireplaces",  # FireplaceScore
     "OverallQual",  # OverallScore, LivArea_x_Qual
     "Condition1",  # Condition
     "Condition2",  # Condition
+    "WoodDeckSF",  # TotalOutdoorSF
+    "OpenPorchSF",  # TotalOutdoorSF
+    "EnclosedPorch",  # TotalOutdoorSF
+    "3SsnPorch",  # TotalOutdoorSF
+    "ScreenPorch",  # TotalOutdoorSF
+    "BsmtQual",  # BsmtScore
+    "BsmtCond",  # BsmtScore
+    "BsmtExposure",  # BsmtScore
+    "BsmtUnfRatio",  # BsmtScore
+    "BsmtFinSF1",  # BsmtScore
+    "BsmtFinSF2",  # BsmtScore
+    "BsmtFinType1",  # BsmtScore
+    "BsmtFinType2",  # BsmtScore
     # より説明的な特徴を追加したため
     "YearBuilt",  # RemodAge, BuildingAge
+    "YearRemodAdd",
     "MoSold",
     "YrSold",
+    "TotRmsAbvGrd",  # FixedTotRms
     # 欠損多すぎのため
     "Street",
+    "PoolQC",
+    "PoolArea",
     # コンペディスカッションや参考ノートにて寄与が低いとされていたため
     "Utilities",
     # 説明コストが重そうなので保留
@@ -52,6 +72,10 @@ drop_feats = [
     #   平坦はプラス要素っぽいが計画区域の安物は平地に多いとも考えられる
     "LandSlope",
     "RoofStyle",
+    # 一旦保留しているモノ
+    "Alley",
+    "Fence",  # カテゴリ内バラつき大きめ
+    "MiscFeature",  # NA or not フラグがよさそう
 ]
 
 eq_values_labeled = {
@@ -61,13 +85,13 @@ eq_values_labeled = {
     "Heating": ["GasA"],
     "PavedDrive": ["Y"],
     "RoofMatl": ["CompShg"],
-    "SaleCondition": ["Abnormal"],
+    "SaleCondition": ["Normal"],
     "LandContour": ["Lvl"],
     "SaleType": ["New"],
-    "Foundation": ["BrkTil", "CBlock", "PConc"],
+    "Foundation": ["PConc"],
     "Utilities": ["AllPub"],
     "GarageType": ["Attchd", "BuiltIn"],
-    # "BldgType": ["1Fam","TwnhsE"],
+    "BldgType": ["1Fam"],
 }
 
 ordinal_encoded = {
@@ -90,11 +114,11 @@ ordinal_encoded = {
     "GarageCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "HeatingQC": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "LotShape": ["Reg", "IR1", "IR2", "IR3"],
-    "BsmtCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
-    "BsmtQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
-    "BsmtExposure": ["None", "No", "Mn", "Av", "Gd"],
-    "BsmtFinType1": ["None", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"],
-    "BsmtFinType2": ["None", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"],
+    # "BsmtCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    # "BsmtQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    # "BsmtExposure": ["None", "No", "Mn", "Av", "Gd"],
+    # "BsmtFinType1": ["None", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"],
+    # "BsmtFinType2": ["None", "Unf", "LwQ", "Rec", "BLQ", "ALQ", "GLQ"],
     "GarageFinish": ["None", "Unf", "RFn", "Fin"],
 }
 
@@ -106,8 +130,6 @@ target_encoded = [
     "MSSubClass",
     "Neighborhood",
     "MSZoning",
-    "TargetExterior1_2",
-    "BldgType",
     "MasVnrType",
 ]
 
@@ -115,25 +137,23 @@ log_standardized = [
     "LotFrontage",
     "LotArea",
     "BsmtUnfSF",
-    "BsmtFinSF1",
-    "BsmtFinSF2",
+    # "BsmtFinSF1",
+    # "BsmtFinSF2",
     "MasVnrArea",
-    "EnclosedPorch",
-    "OpenPorchSF",
-    "WoodDeckSF",
     "BsmtAboveRatio",
     "LivLotRatio",
     "LivArea_x_Qual",
-    "BsmtUnfRatio",
+    # "BsmtUnfRatio",
     "TotalOutdoorSF",
+    "PoFaCount",
+    "MiscVal",
 ]
 
 standardized = [
     "OverallCond",
     "TotalFlrSF",
-    "FullBath",
+    "FixedTotRms",
     "BedroomAbvGr",
-    "TotRmsAbvGrd",
     "GarageCars",
     "GarageYrBlt",
     "GarageArea",
@@ -150,7 +170,6 @@ standardized = [
     "KitchenScore",
     "KitchenAbvGr",
     "MissingNormalyUtilsCount",
-    "HalfBath",
     "BsmtScore",
 ]
 
@@ -252,7 +271,7 @@ def build_preprocessor():
             ("scale", RobustScaler(), standardized),
             ("drop", "drop", drop_feats),
         ],
-        remainder="drop",
+        remainder="passthrough",
     )
 
     tree_ct = ColumnTransformer(
@@ -265,7 +284,7 @@ def build_preprocessor():
             ("scale", "passthrough", standardized),
             ("drop", "drop", drop_feats),
         ],
-        remainder="drop",
+        remainder="passthrough",
     )
 
     return [tree_ct, reg_ct]

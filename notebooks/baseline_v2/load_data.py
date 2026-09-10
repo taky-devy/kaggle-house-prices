@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import cast
 
+import numpy as np
 import pandas as pd
 
 
@@ -20,7 +21,7 @@ def clean(df: pd.DataFrame):
     return df
 
 
-def impute(df):
+def impute(df: pd.DataFrame):
     # suitable
     df["Functional"] = df["Functional"].fillna("Typ")
     df["Electrical"] = df["Electrical"].fillna("SBrkr")
@@ -43,6 +44,18 @@ def impute(df):
     # 同じ住宅タイプは同じ地域に集中する(都市計画的な意味で)だろうというアイデアに基づく
     df["MSZoning"] = df.groupby("MSSubClass")["MSZoning"].transform(
         lambda x: x.fillna(x.mode()[0])
+    )
+
+    # ref other
+    # YearRemodAdd : 1950年でクリップ入力されているためGarageから推測する
+    is_clipped = (df["YearBuilt"] < 1950) & (df["YearRemodAdd"] == 1950)
+    garage_is_zero = df["GarageYrBlt"] == 0
+    conditions = [
+        is_clipped & garage_is_zero,
+        is_clipped & ~garage_is_zero,
+    ]
+    df["YearRemodAdd"] = np.select(
+        conditions, [df["YearBuilt"], df["GarageYrBlt"]], default=df["YearRemodAdd"]
     )
 
     # 残りの str 型は一律 None

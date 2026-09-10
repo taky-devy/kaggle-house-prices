@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import polars as pl
+from polars import selectors as cs
 
 
 def _over_all_score(df: pl.DataFrame) -> pl.DataFrame:
@@ -15,7 +16,7 @@ def _over_all_score(df: pl.DataFrame) -> pl.DataFrame:
 def _bath_score(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "BathScore"
     cols = ["BsmtFullBath", "BsmtHalfBath", "FullBath", "HalfBath"]
-    weights = np.array([2.0, 1.2, 1.0, 0.5])
+    weights = np.array([1.0, 0.5, 1.0, 0.5])
     mat = df.select([pl.col(c) for c in cols])
     score = mat @ weights
     return df.with_columns(pl.Series(new_feat_name, score))
@@ -162,6 +163,17 @@ def _target_exterior1_2(df: pl.DataFrame) -> pl.DataFrame:
     new_feat_name = "TargetExterior1_2"
     return df.with_columns(
         (pl.col("Exterior1st") + "_" + pl.col("Exterior2nd")).alias(new_feat_name)
+    )
+
+
+def _has_composite_ext(df: pl.DataFrame) -> pl.DataFrame:
+    # 外壁が複合素材か
+    new_feat_name = "HasCompositeExt"
+    return df.with_columns(
+        pl.when(pl.col("Exterior1st") != pl.col("Exterior2nd"))
+        .then(1)
+        .otherwise(0)
+        .alias(new_feat_name)
     )
 
 
@@ -317,14 +329,46 @@ def _expensive_neighborhoods(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-# 1階に対する2階の面積比率
 def _2nd_1st_flr_ratio(df: pl.DataFrame) -> pl.DataFrame:
+    # 1階に対する2階の面積比率
     new_feat_name = "2nd1stFlrRatio"
     return df.with_columns(
         (pl.col("2ndFlrSF") / pl.col("1stFlrSF"))
         .fill_nan(0)
         .replace([np.inf, -np.inf], 0)
         .alias(new_feat_name)
+    )
+
+
+def _has_two_families(df: pl.DataFrame) -> pl.DataFrame:
+    # 2世帯住宅かどうか
+    new_feat_name = "HasTwoFamilies"
+    return df.with_columns(
+        pl.col("BldgType")
+        .is_in(["2fmCon", "Duplex"])
+        .cast(pl.Int8)
+        .alias(new_feat_name)
+    )
+
+
+def _fixed_tot_rms(df: pl.DataFrame) -> pl.DataFrame:
+    # 2世帯住宅の部屋数を半分にする
+    new_feat_name = "FixedTotRms"
+    return df.with_columns(
+        pl.when(pl.col("BldgType").is_in(["2fmCon", "Duplex"]) == True)
+        .then(pl.col("TotRmsAbvGrd") // pl.lit(2))
+        .otherwise(pl.col("TotRmsAbvGrd"))
+        .alias(new_feat_name)
+    )
+
+
+def _pofa_count(df: pl.DataFrame) -> pl.DataFrame:
+    # 値 'Po', 'Fa' の行方向カウント
+    new_feat_name = "PoFaCount"
+    return df.with_columns(
+        pl.sum_horizontal(cs.string().is_in(["Po", "Fa"]).cast(pl.Int64)).alias(
+            new_feat_name
+        )
     )
 
 
@@ -348,7 +392,7 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         # _sold_after_rehman,  当時の価格指数が横ばいなので意味なさそう
         _area_per_rooms,
         _no_garege,
-        _target_exterior1_2,
+        # _target_exterior1_2, カテゴリ多すぎにつきボツ
         _livarea_x_qual,
         _garage_car_ratio,
         _fireplace_score,
@@ -365,6 +409,10 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _is_culdsac,
         _2nd_1st_flr_ratio,
         _expensive_neighborhoods,
+        _has_two_families,
+        _has_composite_ext,
+        _fixed_tot_rms,
+        _pofa_count,
     ]
 
     for f in functions:
