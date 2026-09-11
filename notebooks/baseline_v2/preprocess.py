@@ -25,7 +25,10 @@ from sklearn.preprocessing import (
 # 各特徴と前処理のマッピング定義
 drop_feats = [
     # より説明的な生の特徴があるため
-    "HouseStyle",  # MSSubClassが内包している
+    "HouseStyle",
+    "GarageCond",
+    "MasVnrType",
+    "GarageCars",
     # 追加した特徴に統合したため
     "2ndFlrSF",  # GrLivArea
     "1stFlrSF",  # GrLivArea
@@ -38,6 +41,7 @@ drop_feats = [
     "FullBath",  # BathScore
     "HalfBath",  # BathScore
     "Fireplaces",  # FireplaceScore
+    "FireplaceQu",
     "OverallQual",  # OverallScore, LivArea_x_Qual
     "Condition1",  # Condition
     "Condition2",  # Condition
@@ -60,6 +64,7 @@ drop_feats = [
     "MoSold",
     "YrSold",
     "TotRmsAbvGrd",  # FixedTotRms
+    "TotalFlrSF",  # LivArea_x_Qual
     # 欠損多すぎのため
     "Street",
     "PoolQC",
@@ -85,7 +90,6 @@ eq_values_labeled = {
     "Heating": ["GasA"],
     "PavedDrive": ["Y"],
     "RoofMatl": ["CompShg"],
-    "SaleCondition": ["Normal"],
     "LandContour": ["Lvl"],
     "SaleType": ["New"],
     "Foundation": ["PConc"],
@@ -109,9 +113,9 @@ ordinal_encoded = {
     ],
     "ExterQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "ExterCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
-    "FireplaceQu": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    # "FireplaceQu": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "GarageQual": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
-    "GarageCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
+    # "GarageCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "HeatingQC": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
     "LotShape": ["Reg", "IR1", "IR2", "IR3"],
     # "BsmtCond": ["None", "Po", "Fa", "TA", "Gd", "Ex"],
@@ -130,7 +134,10 @@ target_encoded = [
     "MSSubClass",
     "Neighborhood",
     "MSZoning",
-    "MasVnrType",
+    "SaleCondition",
+    "Neighborhood_x_OverallQual",
+    "Neighborhood_x_BuildingAge",
+    "Neighborhood_x_SaleCondition",
 ]
 
 log_standardized = [
@@ -151,10 +158,8 @@ log_standardized = [
 
 standardized = [
     "OverallCond",
-    "TotalFlrSF",
     "FixedTotRms",
     "BedroomAbvGr",
-    "GarageCars",
     "GarageYrBlt",
     "GarageArea",
     "OverallScore",
@@ -171,6 +176,9 @@ standardized = [
     "KitchenAbvGr",
     "MissingNormalyUtilsCount",
     "BsmtScore",
+    "LowQualityFlag",
+    "OldBuildingFlag",
+    "NoGarage",
 ]
 
 
@@ -193,6 +201,18 @@ def build_target_transformer():
 
 # Column(Feature)Transformerの定義
 def build_preprocessor():
+
+    tree_drop_feats = [
+        feature
+        for feature in drop_feats
+        if feature not in {
+            "OverallQual",
+            "GrLivArea",
+            "YearBuilt",
+            "GarageCars",
+            "TotalFlrSF",
+        }
+    ]
 
     log_transformer = FunctionTransformer(
         np.log1p,
@@ -282,7 +302,7 @@ def build_preprocessor():
             ("target_encode", TargetEncoder(target_type="continuous"), target_encoded),
             ("log", "passthrough", log_standardized),
             ("scale", "passthrough", standardized),
-            ("drop", "drop", drop_feats),
+            ("drop", "drop", tree_drop_feats),
         ],
         remainder="passthrough",
     )

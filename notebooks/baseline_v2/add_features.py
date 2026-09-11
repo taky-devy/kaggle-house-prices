@@ -61,6 +61,47 @@ def _building_age(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def _neighborhood_x_overall_qual(df: pl.DataFrame) -> pl.DataFrame:
+    return df.with_columns(
+        (
+            pl.col("Neighborhood").cast(pl.String)
+            + "_Q"
+            + pl.col("OverallQual").cast(pl.String)
+        ).alias("Neighborhood_x_OverallQual")
+    )
+
+
+def _neighborhood_x_building_age(df: pl.DataFrame) -> pl.DataFrame:
+    age_band = (pl.col("BuildingAge") // 20).clip(upper_bound=5).cast(pl.String)
+    return df.with_columns(
+        (pl.col("Neighborhood").cast(pl.String) + "_A" + age_band).alias(
+            "Neighborhood_x_BuildingAge"
+        )
+    )
+
+
+def _neighborhood_x_sale_condition(df: pl.DataFrame) -> pl.DataFrame:
+    return df.with_columns(
+        (
+            pl.col("Neighborhood").cast(pl.String)
+            + "_"
+            + pl.col("SaleCondition").cast(pl.String)
+        ).alias("Neighborhood_x_SaleCondition")
+    )
+
+
+def _low_quality_flag(df: pl.DataFrame) -> pl.DataFrame:
+    return df.with_columns(
+        (pl.col("OverallQual") <= 4).cast(pl.Int8).alias("LowQualityFlag")
+    )
+
+
+def _old_building_flag(df: pl.DataFrame) -> pl.DataFrame:
+    return df.with_columns(
+        (pl.col("BuildingAge") >= 60).cast(pl.Int8).alias("OldBuildingFlag")
+    )
+
+
 def _bsmt_unf_ratio(df: pl.DataFrame) -> pl.DataFrame:
     # BsmtUnfSF / TotalBsmtSF
     new_feat_name = "BsmtUnfRatio"
@@ -386,6 +427,11 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _is_overall_ge9,
         _remod_age,
         _building_age,
+        _neighborhood_x_overall_qual,
+        _neighborhood_x_building_age,
+        _neighborhood_x_sale_condition,
+        _low_quality_flag,
+        _old_building_flag,
         _bsmt_above_ratio,
         _liv_lot_ratio,
         # _sold_may2june,  効いてなさげ
@@ -406,10 +452,10 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _bsmt_unf_ratio,
         _bsmt_score,
         _no_bsmt,
-        _is_culdsac,
+        # _is_culdsac,
         _2nd_1st_flr_ratio,
         _expensive_neighborhoods,
-        _has_two_families,
+        # _has_two_families,
         _has_composite_ext,
         _fixed_tot_rms,
         _pofa_count,
