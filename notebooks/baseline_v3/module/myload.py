@@ -88,7 +88,7 @@ def _impute(df: pd.DataFrame):
 
     # 欠損値の残存チェック
     nulls = df.isna().sum()
-    nulls = nulls[nulls > 0]
+    nulls = nulls[nulls > 0]  # エラーメッセージで列名と件数をペア表示するために上書き
     if len(nulls) > 1:  # test 側の SalePriceが残るため
         raise ValueError(f"Impute失敗。nullを含む列: {nulls.to_dict()}")
 
@@ -100,9 +100,12 @@ def _clean(df: pd.DataFrame):
     df["Exterior2nd"] = df["Exterior2nd"].replace(
         {"Brk Cmn": "BrkComm", "CmentBd": "CemntBd"}
     )
+
+    # ありえない年代(2200年)の上書き
     df["GarageYrBlt"] = df["GarageYrBlt"].where(df.GarageYrBlt <= 2010, df.YearBuilt)
 
-    # clipping input : YearRemodAdd 1950年でクリップ入力されているためGarageYrBltから推測する
+    # clipping input : YearRemodAdd
+    # 下限が1950年でクリップ入力されているためGarageYrBltの伝播を推測値とする
     is_clipped = (df["YearBuilt"] < 1950) & (df["YearRemodAdd"] == 1950)
     garage_is_zero = df["GarageYrBlt"] == 0
     conditions = [
@@ -112,6 +115,7 @@ def _clean(df: pd.DataFrame):
     df["YearRemodAdd"] = np.select(
         conditions, [df["YearBuilt"], df["GarageYrBlt"]], default=df["YearRemodAdd"]
     )
+
     return df
 
 
@@ -123,9 +127,7 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     train = train.drop([524, 1299])  # 有名な外れ値サンプル
 
     # loading pipeline (orchestration)
-    df = pd.concat(
-        [train, test],
-    )
+    df = pd.concat([train, test])
     df = _mycast(df)
     df = _impute(df)
     df = _clean(df)
@@ -133,7 +135,9 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     # Reform splits
     train = df.loc[train.index, :]
     test = df.loc[test.index, :]
-    test = test.iloc[:, :-1]  # 空のSalePrice列が末尾にあるので消す
+    test = test.drop(
+        columns="SalePrice"
+    )  # concat->split の結果、SalePriceが増えているので消す
     train, test = cast(tuple[pd.DataFrame, pd.DataFrame], [train, test])
 
     return train, test
