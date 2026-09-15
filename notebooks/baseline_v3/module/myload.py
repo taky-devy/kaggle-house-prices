@@ -88,8 +88,8 @@ def _impute(df: pd.DataFrame):
 
     # 欠損値の残存チェック
     nulls = df.isna().sum()
-    nulls = nulls[nulls > 0]  # エラーメッセージで列名と件数をペア表示するために上書き
-    if len(nulls) > 1:  # test 側の SalePriceが残るため
+    nulls = nulls[nulls > 0]
+    if len(nulls) > 1:  # test側の SalePriceが残るため2以上でraise
         raise ValueError(f"Impute失敗。nullを含む列: {nulls.to_dict()}")
 
     return df
@@ -124,7 +124,9 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     dir = Path("../../data/")
     train = pd.read_csv(dir / "train.csv", index_col="Id")
     test = pd.read_csv(dir / "test.csv", index_col="Id")
-    train = train.drop([524, 1299])  # 有名な外れ値サンプル
+    train = train.drop(
+        [524, 1299]
+    )  #  GrLivArea vs SalePrice 相関の有名な外れ値サンプル
 
     # loading pipeline (orchestration)
     df = pd.concat([train, test])
@@ -137,7 +139,11 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     test = df.loc[test.index, :]
     test = test.drop(
         columns="SalePrice"
-    )  # concat->split の結果、SalePriceが増えているので消す
+    )  # concat->split の結果、test側にもSalePriceが増えているので消す
     train, test = cast(tuple[pd.DataFrame, pd.DataFrame], [train, test])
+
+    # 目的変数のBin番号列を付与
+    q = 5
+    train["price_bin"] = pd.qcut(train["SalePrice"], q=q, labels=range(q))
 
     return train, test
