@@ -119,7 +119,23 @@ def _clean(df: pd.DataFrame):
     return df
 
 
-def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_data(qcut=4) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    train, submitに対し
+
+    - キャスト
+    - 補完
+    - 誤り修正
+    - 目的変数のビニング
+
+    を行ったデータをロードする。
+
+    Args:
+        qcut (int, optional): 目的変数のビニング列の分割数 Defaults to 4.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame]: (train, submit)
+    """
     # read
     dir = Path("../../data/")
     train = pd.read_csv(dir / "train.csv", index_col="Id")
@@ -143,7 +159,6 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     train, test = cast(tuple[pd.DataFrame, pd.DataFrame], [train, test])
 
     # 目的変数のBin番号列を付与
-    q = 5
-    train["price_bin"] = pd.qcut(train["SalePrice"], q=q, labels=range(q))
+    train["price_bin"] = pd.qcut(train["SalePrice"], q=qcut, labels=range(qcut))
 
     return train, test
