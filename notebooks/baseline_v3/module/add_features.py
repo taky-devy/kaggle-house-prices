@@ -61,38 +61,9 @@ def _building_age(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _neighborhood_x_overall_qual(df: pl.DataFrame) -> pl.DataFrame:
-    return df.with_columns(
-        (
-            pl.col("Neighborhood").cast(pl.String)
-            + "_Q"
-            + pl.col("OverallQual").cast(pl.String)
-        ).alias("Neighborhood_x_OverallQual")
-    )
-
-
-def _neighborhood_x_building_age(df: pl.DataFrame) -> pl.DataFrame:
-    age_band = (pl.col("BuildingAge") // 20).clip(upper_bound=5).cast(pl.String)
-    return df.with_columns(
-        (pl.col("Neighborhood").cast(pl.String) + "_A" + age_band).alias(
-            "Neighborhood_x_BuildingAge"
-        )
-    )
-
-
-def _neighborhood_x_sale_condition(df: pl.DataFrame) -> pl.DataFrame:
-    return df.with_columns(
-        (
-            pl.col("Neighborhood").cast(pl.String)
-            + "_"
-            + pl.col("SaleCondition").cast(pl.String)
-        ).alias("Neighborhood_x_SaleCondition")
-    )
-
-
 def _low_quality_flag(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(
-        (pl.col("OverallQual") <= 4).cast(pl.Int8).alias("LowQualityFlag")
+        (pl.col("OverallQual") <= 2).cast(pl.Int8).alias("LowQualityFlag")
     )
 
 
@@ -131,16 +102,6 @@ def _bsmt_above_ratio(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _is_culdsac(df: pl.DataFrame) -> pl.DataFrame:
-    new_feat_name = "IsCuldsac"
-    return df.with_columns(
-        pl.when(pl.col("LotConfig") == "CulDSac")
-        .then(1)
-        .otherwise(0)
-        .alias(new_feat_name)
-    )
-
-
 def _liv_lot_ratio(df: pl.DataFrame) -> pl.DataFrame:
     # GrLivArea / LotArea
     new_feat_name = "LivLotRatio"
@@ -148,32 +109,6 @@ def _liv_lot_ratio(df: pl.DataFrame) -> pl.DataFrame:
         (pl.col("GrLivArea").fill_null(0) / pl.col("LotArea").fill_null(0))
         .fill_nan(0)
         .replace([np.inf, -np.inf], 0)
-        .alias(new_feat_name)
-    )
-
-
-def _sold_may2june(df: pl.DataFrame) -> pl.DataFrame:
-    # MoSold列が = 5,6 （引っ越しシーズン）なら1, それ以外 0
-    new_feat_name = "SoldMay2June"
-    return df.with_columns(
-        pl.col("MoSold").fill_null(0).is_in([5, 6]).cast(pl.Int8).alias(new_feat_name)
-    )
-
-
-def _sold_after_rehman(df: pl.DataFrame) -> pl.DataFrame:
-    # リーマンショック直後(2008年10月～2008年12月)に売れたか
-    # 開始日は9/15だが売却日のデータがないため月単位で2008年10月を閾値とする
-    # 下のAmes市の住宅価格指数では実はそんなに影響なかった（ほぼ横ばい）ので意味なさそう
-    # https://fred.stlouisfed.org/series/ATNHPIUS11180Q
-    new_feat_name = "SoldAfterRehman"
-    yr_sold = pl.col("YrSold").fill_null(0)
-    mo_sold = pl.col("MoSold").fill_null(0)
-    months_since_epoch = yr_sold * 12 + mo_sold
-    start = 2008 * 12 + 10
-    end = 2008 * 12 + 10
-    return df.with_columns(
-        ((months_since_epoch >= start) & (months_since_epoch <= end))
-        .cast(pl.Int8)
         .alias(new_feat_name)
     )
 
@@ -196,14 +131,6 @@ def _no_garege(df: pl.DataFrame) -> pl.DataFrame:
         .then(1)
         .otherwise(0)
         .alias(new_feat_name)
-    )
-
-
-def _target_exterior1_2(df: pl.DataFrame) -> pl.DataFrame:
-    # description
-    new_feat_name = "TargetExterior1_2"
-    return df.with_columns(
-        (pl.col("Exterior1st") + "_" + pl.col("Exterior2nd")).alias(new_feat_name)
     )
 
 
@@ -413,6 +340,16 @@ def _pofa_count(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def _exgd_count(df: pl.DataFrame) -> pl.DataFrame:
+    # 値 'Ex', 'Gd' の行方向カウント
+    new_feat_name = "PoFaCount"
+    return df.with_columns(
+        pl.sum_horizontal(cs.string().is_in(["Ex", "Gd"]).cast(pl.Int64)).alias(
+            new_feat_name
+        )
+    )
+
+
 # def _hoge(df: pl.DataFrame) -> pl.DataFrame:
 #     new_feat_name = ''
 #     return df.with_columns(
@@ -427,18 +364,12 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _is_overall_ge9,
         _remod_age,
         _building_age,
-        _neighborhood_x_overall_qual,
-        _neighborhood_x_building_age,
-        _neighborhood_x_sale_condition,
         _low_quality_flag,
         _old_building_flag,
         _bsmt_above_ratio,
         _liv_lot_ratio,
-        # _sold_may2june,  効いてなさげ
-        # _sold_after_rehman,  当時の価格指数が横ばいなので意味なさそう
         _area_per_rooms,
         _no_garege,
-        # _target_exterior1_2, カテゴリ多すぎにつきボツ
         _livarea_x_qual,
         _garage_car_ratio,
         _fireplace_score,
@@ -452,13 +383,13 @@ def add_modified_features(df: pl.DataFrame) -> pd.DataFrame:
         _bsmt_unf_ratio,
         _bsmt_score,
         _no_bsmt,
-        # _is_culdsac,
         _2nd_1st_flr_ratio,
         _expensive_neighborhoods,
-        # _has_two_families,
+        _has_two_families,
         _has_composite_ext,
         _fixed_tot_rms,
         _pofa_count,
+        _exgd_count,
     ]
 
     for f in functions:
